@@ -51,8 +51,3 @@ spring:
     jackson:
         property-naming-strategy: SNAKE_CASE
 
-outbound:
-    identity:
-        client-id: "999680367448-8n3mdao9dddqcleppsi1fbttog3g0bhr.apps.googleusercontent.com"
-        client-secret: "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"
-        redirect-uri: "http://localhost:5173/authenticate" #This should be the redirect url of your client, no?
