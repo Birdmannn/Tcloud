@@ -1,0 +1,58 @@
+logging:
+    level:
+        org:
+            springframework:
+                security: "DEBUG"
+
+security:
+    jwt:
+        expiration-time: 3_600_000 # 3600000 1 hour
+        refresh-expiration-time: 36_000_000 # 10 hours
+        secret-key: 42c166e393c7c0a78bbbd888fa3692d4eef9e3156c8a34d29aeb211633d94442
+
+#jwt:
+#    signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
+#    valid-duration: 3600 # in second
+#    refreshable-duration: 36000 # in seconds
+
+server:
+    port: 8082
+
+
+spring:
+    application:
+        name: "tcloud3"
+    data:
+        rest:
+            base-path: /data-api
+    datasource:
+        generate-unique-name: false
+        name: tcloud
+        password: secret
+        url: jdbc:h2:file:/data/tcloudData3 #jdbc:h2:file:~/tcloud.h2.db
+#        url: jdbc:mysql://localhost:3307/taskdb?serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false
+        username: root
+        driver-class-name: org.h2.Driver
+
+    jpa:
+        open-in-view: true
+        hibernate:
+            ddl-auto: update
+#        database-platform: org.hibernate.dialect.H2Dialect
+    security:
+        filter:
+            order: 10
+    thymeleaf:
+        check-template-location: false
+    h2:
+        console:
+            enabled: true
+            path: /h2-console
+    jackson:
+        property-naming-strategy: SNAKE_CASE
+
+outbound:
+    identity:
+        client-id: "999680367448-8n3mdao9dddqcleppsi1fbttog3g0bhr.apps.googleusercontent.com"
+        client-secret: "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"
+        redirect-uri: "http://localhost:5173/authenticate" #This should be the redirect url of your client, no?
