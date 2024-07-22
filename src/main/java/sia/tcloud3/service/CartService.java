@@ -40,6 +40,7 @@ public class CartService {
         CartItem cartItem = new CartItem();
         tacoRepository.findById(id).ifPresent(cartItem::setTaco);
         cart.addItem(cartItem);
+        cartRepository.save(cart);
         return cart;
     }
 

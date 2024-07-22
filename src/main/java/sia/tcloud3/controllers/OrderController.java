@@ -9,6 +9,7 @@ import sia.tcloud3.entity.TacoOrder;
 import sia.tcloud3.service.OrderService;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("orders")
@@ -21,21 +22,23 @@ public class OrderController {
         this.orderService = orderService;
     }
 
-    @GetMapping
-    public ResponseEntity<List<TacoOrder>> getAllOrders(@RequestParam("sort") String sort,
-                                                        @RequestParam("page") int page,
-                                                        @RequestParam("size") int size) {
-        return ResponseEntity.ok(orderService.getAllOrders(sort, page, size));
+    @GetMapping()
+    public ResponseEntity<List<TacoOrder>> getAllOrders(@RequestParam(value = "sort", defaultValue = "placedAt") String sort,
+                                                        @RequestParam(value = "page", defaultValue = "0") int page,
+                                                        @RequestParam(value = "size", defaultValue = "10") int size) {
+        List<TacoOrder> orders = orderService.getAllOrders(sort, page, size, true);
+        return orders != null ? ResponseEntity.ok(orders) : ResponseEntity.notFound().build();
     }
 
     @GetMapping("{id}")
-    public TacoOrder adminGetOrderById(@PathVariable Long id) {
-
+    public ResponseEntity<TacoOrder> adminGetOrderById(@PathVariable Long id) {
+        return getOrder(id, true);
     }
 
     @DeleteMapping("{id}")
     public ResponseEntity<String> adminDeleteOrderById(@PathVariable Long id) {
         orderService.deleteOrderById(id, true);
+        return ResponseEntity.ok("deleted.");
     }
     @PostMapping
     public ResponseEntity<OrderResponse> placeOrder(@RequestBody OrderRequest orderRequest) {
@@ -44,13 +47,22 @@ public class OrderController {
 
     @GetMapping("my-orders")
     // Check pagination, sorting, for both admin and user
-    public ResponseEntity<List<OrderResponse>> myOrders() {
+    public ResponseEntity<List<OrderResponse>> myOrders(@RequestParam(value = "sort", defaultValue = "placedAt") String sort,
+                                                        @RequestParam(value = "page", defaultValue = "0") int page,
+                                                        @RequestParam(value = "size", defaultValue = "10") int size) {
+        List<TacoOrder> order = orderService.getAllOrders(sort, page, size, false);
+        if (order == null)
+            return ResponseEntity.notFound().build();
+        List<OrderResponse> orderResponseList;
+        orderResponseList = order.stream().map(orderService::convertToOrderResponse).collect(Collectors.toList());
+        return ResponseEntity.ok(orderResponseList);
 
     }
 
+    // Check if a Taco order should be returned, or an OrderResponse
     @GetMapping("/my-orders/{id}")
     public ResponseEntity<TacoOrder> getOrderById(@PathVariable Long id) {
-        TacoOrder order = orderService.getOrderById(id);
+       return getOrder(id, false);
     }
 
     /* TODO: For Admin, the admin gets the orders and this controller may involve queries from the
@@ -67,4 +79,13 @@ public class OrderController {
     }
 
     // In the future, you may add multiple deletion by putting all the ids in a list in a request.
+
+    // ------------------------------------------- Private methods --------------------------------------------------------
+
+    private ResponseEntity<TacoOrder> getOrder(Long id, boolean admin) {
+        TacoOrder order = orderService.getOrderById(id, admin);
+        return order == null ? ResponseEntity.notFound().build() : ResponseEntity.ok(order);
+    }
+
+
 }

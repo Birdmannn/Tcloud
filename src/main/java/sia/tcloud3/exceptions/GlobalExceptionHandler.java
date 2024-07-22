@@ -2,6 +2,7 @@ package sia.tcloud3.exceptions;
 
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.security.SignatureException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -11,6 +12,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import sia.tcloud3.service.DesignService.DesignTacoException;
+import sia.tcloud3.service.OrderService.OrderServiceException;
 
 import java.util.Arrays;
 
@@ -44,7 +46,7 @@ public class GlobalExceptionHandler {
         } else if (exception instanceof ExpiredJwtException) {
             subject = "The JWT Token has expired";
 
-        } else if (errorDetail == null) {
+        } else {
             subject = "Unknown internal server error.";
             code = 500;
         }
@@ -57,5 +59,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DesignTacoException.class)
     public ResponseEntity<String> handleDesignException(DesignTacoException e) {
         return ResponseEntity.badRequest().body(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()));
+    }
+
+    @ExceptionHandler(OrderServiceException.class)
+    public ResponseEntity<String> handleOrderCreationException(OrderServiceException e) {
+        // Cross-check
+        return new ResponseEntity<>(e.getMessage() + "\n" + Arrays.toString(e.getStackTrace()), HttpStatus.valueOf(600));
     }
 }

@@ -1,7 +1,10 @@
 package sia.tcloud3.service;
 
 import jakarta.transaction.Transactional;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import sia.tcloud3.dtos.requests.OrderRequest;
 import sia.tcloud3.dtos.response.OrderResponse;
@@ -13,9 +16,10 @@ import sia.tcloud3.repositories.TacoRepository;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -31,16 +35,35 @@ public class OrderService {
     private final TacoRepository tacoRepository;
     private final UserService userService;
 
-    public OrderService(OrderRepository orderRepository, OrderMapper orderMapper, TacoRepository tacoRepository, UserService userService) {
+    public OrderService(OrderRepository orderRepository, OrderMapper orderMapper, TacoRepository tacoRepository,
+                        UserService userService) {
         this.orderRepository = orderRepository;
         this.orderMapper = orderMapper;
         this.tacoRepository = tacoRepository;
         this.userService = userService;
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<TacoOrder> getAllOrders(String sort, int page, int size) {
-        return (List<TacoOrder>) orderRepository.findAll();
+    public List<TacoOrder> getAllOrders(String sort, int page, int size, boolean admin) {
+        String[] sortParam = null;
+        if (sort.contains(",")) {
+            sortParam = sort.split(",");
+        }
+
+        sort = sortParam == null ? sort : sortParam[0];
+        String direction = sortParam == null ? "desc" : sortParam[1];   // desc as default.
+        Sort.Direction sortDirection = direction.equals("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
+        Page<TacoOrder> tacoOrdersPage = orderRepository.findAll(pageable);
+        List<TacoOrder> tacoOrders = tacoOrdersPage.getContent();
+
+        if (! admin) {
+            Long userId = userService.retrieveCurrentUser().getId();
+            for (TacoOrder order : tacoOrders)
+                if (!Objects.equals(order.getUserId(), userId))
+                    return null;
+        }
+        return tacoOrders;
     }
 
     //This method should throw an error if the order could not be created.
@@ -50,10 +73,9 @@ public class OrderService {
         BigDecimal orderCost = new BigDecimal(testAddition);
 
         List<Long> tacoIds = order.getTacoIds();
-        List<String> tacoNames = new ArrayList<>();
+
         for (Long tacoId : tacoIds) {
-            Taco taco = tacoRepository.findById(tacoId).orElseThrow(() -> new OrderCreationError("Error in creating order"));
-            tacoNames.add(taco.getName());
+            Taco taco = tacoRepository.findById(tacoId).orElseThrow(() -> new OrderServiceException("Error in creating order."));
             orderCost = orderCost.add(taco.getCost());
         }
 
@@ -62,13 +84,7 @@ public class OrderService {
         order.setUserId(retrieveId());
         orderRepository.save(order);
 
-        return OrderResponse.builder()
-                .message("This is your order and it's net cost.")
-                .orderId(order.getId())
-                .createdAt(order.getPlacedAt())
-                .tacoNames(tacoNames)
-                .cost(orderCost)
-                .build();
+        return convertToOrderResponse(order);
     }
 
     private Long retrieveId() {
@@ -86,22 +102,40 @@ public class OrderService {
             try {
                 orderRepository.deleteById(id);
             } catch (Exception e) {
-                throw new OrderCreationError("Could not delete order fom repository");
+                throw new OrderServiceException("Could not delete order from repository");
             }
         }
 
         return userOrders;
     }
 
-    public TacoOrder getOrderById(Long id) {
-
+    public TacoOrder getOrderById(Long id, boolean admin) {
+        Optional<TacoOrder> order;
+        order = orderRepository.findById(id);
+        if (! admin && order.isPresent())
+            if (! Objects.equals(order.get().getUserId(), retrieveId()))
+                return null;
+        return order.orElse(null);
     }
 
+    // Migrate this to the OrderMapper ???
+    public OrderResponse convertToOrderResponse(TacoOrder order) {
+        List<Long> tacoIds = order.getTacoIds();
+        List<String> tacoNames = tacoIds.stream().map(tacoId -> tacoRepository.findById(tacoId).orElseThrow(
+                () -> new OrderServiceException("Error in converting order"))).map(Taco::getName).collect(Collectors.toList());
+        return OrderResponse.builder()
+                .message("This is your order and it's net cost.")
+                .orderId(order.getId())
+                .createdAt(order.getPlacedAt())
+                .tacoNames(tacoNames)
+                .cost(order.getCost())
+                .build();
+    }
 
     // ---------------------------------------- Error Class ---------------------------------------------------------
 
-    public static class OrderCreationError extends RuntimeException {
-        OrderCreationError(String message) {
+    public static class OrderServiceException extends RuntimeException {
+        OrderServiceException(String message) {
             super(message);
         }
     }

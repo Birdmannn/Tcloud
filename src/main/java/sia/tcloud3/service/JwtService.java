@@ -42,8 +42,6 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
-        log.info("the first generate token, userdetails is: {}", userDetails.getUsername());
-        log.info("check again {}", userDetails == null);
         return generateToken(new HashMap<>(), userDetails);
     }
 

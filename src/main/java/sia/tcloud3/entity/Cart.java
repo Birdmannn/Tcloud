@@ -21,7 +21,7 @@ public class Cart {
 
     Long userId;
 
-    @OneToMany(mappedBy = "cart")
+    @OneToMany()
     List<CartItem> cartItems;
 
     @Transient
