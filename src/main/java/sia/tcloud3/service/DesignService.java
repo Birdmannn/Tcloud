@@ -34,10 +34,9 @@ public class DesignService {
     }
 
     public Taco saveDesign(DesignRequest request, boolean admin) {
-//        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
         List<String> ingredientIds = request.getIngredientList();
-//        List<Ingredient> ingredients = ingredientIds.stream().map(ingredientId -> ingredientRepository.findById(ingredientId)
-//                .orElseThrow(() -> new DesignTacoException("Invalid Ingredient ID in List."))).collect(Collectors.toList());
+
         int cost = ingredientIds.stream().map(id -> ingredientRepository.findById(id).orElseThrow(() ->
                 new DesignTacoException("A problem has been encountered whilst loading ingredients for taco cost.")))
                 .mapToInt(Ingredient::getCost).sum();

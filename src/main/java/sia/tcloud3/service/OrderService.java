@@ -45,9 +45,8 @@ public class OrderService {
 
     public List<TacoOrder> getAllOrders(String sort, int page, int size, boolean admin) {
         String[] sortParam = null;
-        if (sort.contains(",")) {
+        if (sort.contains(","))
             sortParam = sort.split(",");
-        }
 
         sort = sortParam == null ? sort : sortParam[0];
         String direction = sortParam == null ? "desc" : sortParam[1];   // desc as default.

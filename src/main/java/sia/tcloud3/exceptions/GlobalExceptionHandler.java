@@ -46,6 +46,9 @@ public class GlobalExceptionHandler {
         } else if (exception instanceof ExpiredJwtException) {
             subject = "The JWT Token has expired";
 
+        } else if (exception instanceof DesignTacoException) {
+            subject = exception.getMessage();
+            code = 401;
         } else {
             subject = "Unknown internal server error.";
             code = 500;

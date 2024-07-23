@@ -1,8 +1,8 @@
 package sia.tcloud3.service;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -11,15 +11,21 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import sia.tcloud3.entity.ConfirmationToken;
 import sia.tcloud3.repositories.UserRepository;
 import sia.tcloud3.dtos.requests.LoginRequest;
 import sia.tcloud3.dtos.requests.SignUpRequest;
 import sia.tcloud3.dtos.response.LoginResponse;
 import sia.tcloud3.entity.RefreshToken;
 import sia.tcloud3.entity.Users;
+import sia.tcloud3.service.email.EmailBuilder;
+import sia.tcloud3.service.email.EmailService;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -32,15 +38,15 @@ public class AuthenticationService {
     private final JwtService jwtService;
     private final InMemoryTokenBlacklistService inMemoryTokenBlacklistService;
     private final UserService userService;
+    private final ConfirmationTokenService confirmationTokenService;
+    private final EmailService emailService;
 
     private List<String> refreshTokenList;
 
-    @Getter
-    private String message = null;
 
     public AuthenticationService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                                  AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService,
-                                 JwtService jwtService, InMemoryTokenBlacklistService inMemoryTokenBlacklistService, UserService userService) {
+                                 JwtService jwtService, InMemoryTokenBlacklistService inMemoryTokenBlacklistService, UserService userService, ConfirmationTokenService confirmationTokenService, EmailService emailService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -49,17 +55,33 @@ public class AuthenticationService {
         this.inMemoryTokenBlacklistService = inMemoryTokenBlacklistService;
         this.userService = userService;
         refreshTokenList = new ArrayList<>();
+        this.confirmationTokenService = confirmationTokenService;
+        this.emailService = emailService;
     }
 
     public Users signUp(@NotNull SignUpRequest input) {
-        Users user = new Users(input.getEmail(), passwordEncoder.encode(input.getPassword()),
+        Users newUser = new Users(input.getEmail(), passwordEncoder.encode(input.getPassword()),
                 input.getFirstName(), input.getLastName(), Users.Role.USER);
-        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
-            message = "User Exists.";
+        Optional<Users> optUser = userRepository.findByEmail(newUser.getEmail());
+        if (optUser.isPresent()) {
+            Users user = optUser.get();
+            if (! user.isEnabled()) {
+                String token = UUID.randomUUID().toString();
+                saveConfirmationToken(user, token);
+                return user;
+            }
             return null;
         }
-        message = "User registered successfully";
-        return userRepository.save(user);
+        Users savedUser = userRepository.save(newUser);
+        String token = UUID.randomUUID().toString();
+        saveConfirmationToken(savedUser, token);
+
+        // Here is for the email confirmation
+        // Since we are running the spring boot app in localhost, we are hardcoding the url of the server
+        // We are creating a POST request with token param
+        String link = "http://localhost:8082/auth/signup/confirm?token=" + token;
+        emailService.sendEmail(savedUser.getEmail(), EmailBuilder.buildEmail(savedUser.getFirstName(), link));
+        return savedUser;
     }
 
     private Users authenticate(@NotNull LoginRequest input) {
@@ -105,7 +127,6 @@ public class AuthenticationService {
     }
 
     public String logout(HttpServletRequest request) {
-        // Collect a @RequestBody of the refresh token
         String token = extractTokenFromRequest(request);
         if (token  == null)
             return "No token detected. User is still logged in.";
@@ -116,10 +137,48 @@ public class AuthenticationService {
         return "Logged out Successfully";
     }
 
+    public int enableUser(String email) {
+        return userRepository.enableUserByEmail(email);
+    }
+
+
+
+    // ----------------------------------- Strictly Confirmation Token methods -------------------------------------------
+
+    @Transactional
+    public String confirmToken(String token) {
+        Optional<ConfirmationToken> confirmationToken = confirmationTokenService.getToken(token);
+        if (! confirmationToken.isPresent())
+            throw new IllegalStateException("Token not found!");
+
+        if (confirmationToken.get().getConfirmedAt() != null)
+            throw new IllegalStateException("Email is already confirmed.");
+
+        LocalDateTime expiresAt = confirmationToken.get().getExpiresAt();
+        if (expiresAt.isBefore(LocalDateTime.now()))
+            throw new IllegalStateException("Token is already expired.");
+
+        confirmationTokenService.setConfirmedAt(token);
+        enableUser(confirmationToken.get().getUser().getEmail());
+
+        return "Your email is confirmed. Thank you for using our service!";
+    }
+
+
+    // ----------------------------------------- Private methods ----------------------------------------------------------
+
     private String extractTokenFromRequest(HttpServletRequest request) {
         @NotNull String authorizationHeader = request.getHeader("Authorization");
         if (StringUtils.hasText(authorizationHeader) && authorizationHeader.startsWith("Bearer "))
             return authorizationHeader.split(" ")[1];
         return null; // if not valid.
+    }
+
+    private void saveConfirmationToken(Users user, String token) {
+        ConfirmationToken confirmationToken = ConfirmationToken.builder().token(token)
+                .createdAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .user(user).build();
+        confirmationTokenService.saveConfirmationToken(confirmationToken);
     }
 }

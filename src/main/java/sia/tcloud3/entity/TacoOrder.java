@@ -10,17 +10,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 
 import lombok.NoArgsConstructor;
-import org.hibernate.validator.constraints.CreditCardNumber;
-import org.springframework.data.rest.core.annotation.RestResource;
 
 @Data
 @Entity
-@RestResource(rel = "taco-orders", path = "taco-orders")
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder

@@ -34,8 +34,7 @@ public class Users implements UserDetails {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@NotEmpty(message = "Email address is required.")
-	@Email(message = "The email address is invalid.", flags = {Pattern.Flag.CASE_INSENSITIVE})
+
 	private String email;
 
 	@JsonIgnore
@@ -66,6 +65,11 @@ public class Users implements UserDetails {
 	private String zip;
 	private String phoneNumber;
 
+	@JsonIgnore
+	private Boolean locked;
+	@JsonIgnore
+	private Boolean enabled;
+
 	@Enumerated(EnumType.STRING)
 	private Role role;
 
@@ -85,7 +89,7 @@ public class Users implements UserDetails {
 
 	@Override
 	public boolean isAccountNonLocked() {
-		return true;
+		return ! locked;
 	}
 
 	@Override
@@ -95,7 +99,7 @@ public class Users implements UserDetails {
 
 	@Override
 	public boolean isEnabled() {
-		return true;
+		return enabled;
 	}
 
 	@Override
