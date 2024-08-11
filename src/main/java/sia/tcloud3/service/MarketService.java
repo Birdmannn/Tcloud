@@ -46,7 +46,10 @@ public class MarketService {
         tacoRepository.deleteAll(tacos);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     public Taco createTaco(DesignRequest request) {
         return designService.saveDesign(request, true);
     }
+
+    // TODO: Implement search.
 }

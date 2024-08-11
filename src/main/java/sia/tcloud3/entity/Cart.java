@@ -1,8 +1,10 @@
 package sia.tcloud3.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.Cascade;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,12 +18,14 @@ import java.util.List;
 public class Cart {
 
     @Id
+    @JsonIgnore
     @GeneratedValue(strategy = GenerationType.AUTO)
     Long id;
 
+    @JsonIgnore
     Long userId;
 
-    @OneToMany()
+    @OneToMany(cascade = CascadeType.PERSIST)
     List<CartItem> cartItems;
 
     @Transient

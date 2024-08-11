@@ -50,7 +50,7 @@ public class AuthenticationController {
         return ResponseEntity.ok(res);
     }
 
-    @PostMapping("/signup/confirm")
+    @GetMapping("/signup/confirm")
     public String confirm(@RequestParam("token") String token) {
         return authenticationService.confirmToken(token);
     }

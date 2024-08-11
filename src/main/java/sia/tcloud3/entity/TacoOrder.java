@@ -27,6 +27,7 @@ public class TacoOrder implements Serializable {
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long id;
 	private Instant placedAt;
+	private String status;
 
 	private Long userId;
 

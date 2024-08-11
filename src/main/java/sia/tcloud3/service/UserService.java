@@ -34,9 +34,7 @@ public class UserService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public List<Users> allUsers() {
-        List<Users> users = new ArrayList<>();
-        userRepository.findAll().forEach(users::add);
-        return users;
+        return new ArrayList<>(userRepository.findAll());
     }
 
     @PreAuthorize("hasRole('ADMIN')")

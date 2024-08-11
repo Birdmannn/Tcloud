@@ -12,6 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import sia.tcloud3.repositories.UserRepository;
 import sia.tcloud3.entity.Users;
 
+import java.util.List;
+import java.util.Optional;
+
 @Configuration
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
@@ -33,16 +36,19 @@ public class ApplicationInitConfig {
         return args -> {
             if (! userRepository.existsByRole(Users.Role.ADMIN)) {
                 Users user = Users.builder()
-                        .firstName("Cullo")
-                        .lastName("Cullo")
-                        .email(ADMIN_EMAIL)
+                        .firstName("Admin")
+                        .lastName("Admin")
+                        .email("admin3@gmail.com")
                         .password(passwordEncoder.encode(ADMIN_PASSWORD))
+                        .enabled(true)
+                        .locked(false)
                         .role(Users.Role.ADMIN)
                         .build();
 
                 userRepository.save(user);
-                log.warn("admin user has been created with default password: admin. please change it.");
+                log.warn("admin3 user has been created with default password: admin. please change it.");
             }
+
             log.info("Application initialization completed.");
         };
     }

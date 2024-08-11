@@ -1,6 +1,7 @@
 package sia.tcloud3.service;
 
 import jakarta.transaction.Transactional;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,14 +14,17 @@ import sia.tcloud3.entity.TacoOrder;
 import sia.tcloud3.mapper.OrderMapper;
 import sia.tcloud3.repositories.OrderRepository;
 import sia.tcloud3.repositories.TacoRepository;
+import sia.tcloud3.service.params.ParamsOrganizer;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional
 public class OrderService {
@@ -44,23 +48,19 @@ public class OrderService {
     }
 
     public List<TacoOrder> getAllOrders(String sort, int page, int size, boolean admin) {
-        String[] sortParam = null;
-        if (sort.contains(","))
-            sortParam = sort.split(",");
-
-        sort = sortParam == null ? sort : sortParam[0];
-        String direction = sortParam == null ? "desc" : sortParam[1];   // desc as default.
-        Sort.Direction sortDirection = direction.equals("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
-
-        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sort));
+        Pageable pageable = ParamsOrganizer.organizePage(sort, page, size);
         Page<TacoOrder> tacoOrdersPage = orderRepository.findAll(pageable);
         List<TacoOrder> tacoOrders = tacoOrdersPage.getContent();
+        List<TacoOrder> userOrders = new ArrayList<>();
 
+        // TODO: Put this admin issh into the Pageable method
+        //   so it can page the user's orders if it surpasses a page, or not
         if (! admin) {
             Long userId = userService.retrieveCurrentUser().getId();
             for (TacoOrder order : tacoOrders)
-                if (!Objects.equals(order.getUserId(), userId))
-                    return null;
+                if (Objects.equals(order.getUserId(), userId))
+                    userOrders.add(order);
+            return userOrders;
         }
         return tacoOrders;
     }
@@ -80,6 +80,7 @@ public class OrderService {
 
         order.setPlacedAt(Instant.now());
         order.setCost(orderCost);
+        order.setStatus("pending");
         order.setUserId(retrieveId());
         orderRepository.save(order);
 

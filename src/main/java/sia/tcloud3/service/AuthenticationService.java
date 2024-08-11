@@ -62,26 +62,34 @@ public class AuthenticationService {
     public Users signUp(@NotNull SignUpRequest input) {
         Users newUser = new Users(input.getEmail(), passwordEncoder.encode(input.getPassword()),
                 input.getFirstName(), input.getLastName(), Users.Role.USER);
+        newUser.setLocked(false);
+        newUser.setEnabled(false);
+        log.info("User {} enabled? {}", newUser.getEmail(), newUser.isEnabled());
         Optional<Users> optUser = userRepository.findByEmail(newUser.getEmail());
+        log.info("user here");
         if (optUser.isPresent()) {
             Users user = optUser.get();
-            if (! user.isEnabled()) {
-                String token = UUID.randomUUID().toString();
-                saveConfirmationToken(user, token);
-                return user;
-            }
-            return null;
+            if (user.isEnabled())
+               return null;
+            log.info("Reached here, user is not enabled");
         }
-        Users savedUser = userRepository.save(newUser);
+        else {
+            userRepository.save(newUser);
+        }
+
+        Users user = optUser.orElse(newUser);
         String token = UUID.randomUUID().toString();
-        saveConfirmationToken(savedUser, token);
+        saveConfirmationToken(user, token);
 
         // Here is for the email confirmation
         // Since we are running the spring boot app in localhost, we are hardcoding the url of the server
         // We are creating a POST request with token param
+        log.info("sending link and token {}", token);
         String link = "http://localhost:8082/auth/signup/confirm?token=" + token;
-        emailService.sendEmail(savedUser.getEmail(), EmailBuilder.buildEmail(savedUser.getFirstName(), link));
-        return savedUser;
+//        emailService.sendEmail(user.getEmail(), EmailBuilder.buildEmail(user.getFirstName(), link));
+        log.info("email sent. reached here.");
+        log.info("link {}", link);
+        return user;
     }
 
     private Users authenticate(@NotNull LoginRequest input) {

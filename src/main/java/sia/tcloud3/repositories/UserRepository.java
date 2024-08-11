@@ -8,6 +8,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 import sia.tcloud3.entity.Users;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -24,4 +25,5 @@ public interface UserRepository extends JpaRepository<Users, Long> {
     @Query("UPDATE Users a SET a.enabled = true WHERE a.email = ?1")
     int enableUserByEmail(String email);
 
+    Optional<List<Users>> findAllByRole(Users.Role role);
 }

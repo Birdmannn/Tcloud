@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import sia.tcloud3.service.DesignService.DesignTacoException;
 import sia.tcloud3.service.OrderService.OrderServiceException;
+import sia.tcloud3.service.checkout.PaystackServiceImpl.PaymentException;
 
 import java.util.Arrays;
 

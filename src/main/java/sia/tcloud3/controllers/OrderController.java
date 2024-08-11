@@ -45,8 +45,7 @@ public class OrderController {
         return new ResponseEntity<>(orderService.createOrder(orderRequest), HttpStatus.CREATED);
     }
 
-    @GetMapping("my-orders")
-    // Check pagination, sorting, for both admin and user
+    @GetMapping("/my-orders")
     public ResponseEntity<List<OrderResponse>> myOrders(@RequestParam(value = "sort", defaultValue = "placedAt") String sort,
                                                         @RequestParam(value = "page", defaultValue = "0") int page,
                                                         @RequestParam(value = "size", defaultValue = "10") int size) {

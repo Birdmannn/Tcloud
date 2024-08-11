@@ -1,5 +1,6 @@
 package sia.tcloud3.entity;
 
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;

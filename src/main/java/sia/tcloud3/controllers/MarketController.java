@@ -23,8 +23,11 @@ public class MarketController {
         this.marketService = marketService;
     }
 
+    // TODO: Check how searching is implemented. Return whatever is being searched. Perhaps an Object?
     @GetMapping
-    public ResponseEntity<List<Taco>> getAvailableTacos() {
+    public ResponseEntity<List<Taco>> getAvailableTacos(@RequestParam("search") String keyword,
+                                                        @RequestParam(value = "sort", defaultValue = "placedAt") String sort,
+                                                        @RequestParam(value = "size", defaultValue = "25") int size) {
         List<Taco> tacos = marketService.getAvailableTacos();
         return tacos.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(tacos);
     }

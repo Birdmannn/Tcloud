@@ -12,9 +12,9 @@ public class UserUpdateRequest {
     String password;
     String firstName;
     String lastName;
-//    String street;
-//    String city;
-//    String state;
-//    String zip;
-//    String phoneNumber;
+    String street;
+    String city;
+    String state;
+    String zip;
+    String phoneNumber;
 }

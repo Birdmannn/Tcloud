@@ -31,7 +31,7 @@ public class Taco {
 	private Instant createdAt = Instant.now();
 	
 	@NotNull
-	@Size(min = 5, message = "Name must be atleast 5 characters long")
+	@Size(min = 5, message = "Name must be at least 5 characters long")
 	private String name;
 
     @JsonIgnore
