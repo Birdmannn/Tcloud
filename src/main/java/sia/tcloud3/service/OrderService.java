@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import sia.tcloud3.dtos.requests.OrderRequest;
 import sia.tcloud3.dtos.response.OrderResponse;
@@ -130,6 +131,12 @@ public class OrderService {
                 .tacoNames(tacoNames)
                 .cost(order.getCost())
                 .build();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<TacoOrder> findBySearchText(String searchText) {
+        return orderRepository.findBySearchText(searchText);
+        // Now here, you may filter by the status of the order
     }
 
     // ---------------------------------------- Error Class ---------------------------------------------------------

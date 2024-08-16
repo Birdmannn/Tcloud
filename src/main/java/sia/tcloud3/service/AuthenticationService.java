@@ -11,16 +11,19 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import sia.tcloud3.dtos.requests.ResetPasswordRequest;
 import sia.tcloud3.entity.ConfirmationToken;
+import sia.tcloud3.entity.ResetPasswordToken;
+import sia.tcloud3.repositories.ResetPasswordTokenRepository;
 import sia.tcloud3.repositories.UserRepository;
 import sia.tcloud3.dtos.requests.LoginRequest;
 import sia.tcloud3.dtos.requests.SignUpRequest;
 import sia.tcloud3.dtos.response.LoginResponse;
 import sia.tcloud3.entity.RefreshToken;
 import sia.tcloud3.entity.Users;
-import sia.tcloud3.service.email.EmailBuilder;
 import sia.tcloud3.service.email.EmailService;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,13 +43,17 @@ public class AuthenticationService {
     private final UserService userService;
     private final ConfirmationTokenService confirmationTokenService;
     private final EmailService emailService;
+    private final ResetPasswordTokenRepository resetPasswordTokenRepository;
 
     private List<String> refreshTokenList;
+    private static final long EXPIRE_TOKEN = 15;
 
 
     public AuthenticationService(UserRepository userRepository, PasswordEncoder passwordEncoder,
                                  AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService,
-                                 JwtService jwtService, InMemoryTokenBlacklistService inMemoryTokenBlacklistService, UserService userService, ConfirmationTokenService confirmationTokenService, EmailService emailService) {
+                                 JwtService jwtService, InMemoryTokenBlacklistService inMemoryTokenBlacklistService,
+                                 UserService userService, ConfirmationTokenService confirmationTokenService,
+                                 EmailService emailService, ResetPasswordTokenRepository resetPasswordTokenRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -54,6 +61,7 @@ public class AuthenticationService {
         this.jwtService = jwtService;
         this.inMemoryTokenBlacklistService = inMemoryTokenBlacklistService;
         this.userService = userService;
+        this.resetPasswordTokenRepository = resetPasswordTokenRepository;
         refreshTokenList = new ArrayList<>();
         this.confirmationTokenService = confirmationTokenService;
         this.emailService = emailService;
@@ -145,8 +153,68 @@ public class AuthenticationService {
         return "Logged out Successfully";
     }
 
-    public int enableUser(String email) {
-        return userRepository.enableUserByEmail(email);
+    public void enableUser(String email) {
+        userRepository.enableUserByEmail(email);
+    }
+
+    public String forgotPassword(String email) {
+        Optional<Users> userOpt = userRepository.findByEmail(email);
+        if (!userOpt.isPresent())
+            return null;
+        Users user = userOpt.get();
+        String token = UUID.randomUUID().toString();
+        ResetPasswordToken resetPasswordToken = ResetPasswordToken.builder()
+                .token(token)
+                .userId(user.getId())
+                .expiresAt(Instant.now().plusSeconds(EXPIRE_TOKEN * 60)).build(); // 15 minutes
+        resetPasswordTokenRepository.save(resetPasswordToken);
+        String url = "http://localhost:8082/auth/resetPassword?token=" + token;
+        String tempMessage = "Your Reset Password link: " + url + ". If you didn't request for this, please ignore this message.";
+        log.info("Reset Password link: {}", url);
+        // TODO: Implementation -- Send a link of the front-end reset password page to the user
+        //  Then still check this...
+//        emailService.sendEmail(email, tempMessage);
+        return "Reset Password link has been sent to that email.";
+    }
+
+    public boolean resetPassword(String token) {
+        Optional<ResetPasswordToken> resetPasswordToken = resetPasswordTokenRepository.findByToken(token);
+        if (!resetPasswordToken.isPresent()) {
+            log.warn("token not present.");
+            return false;
+        }
+        ResetPasswordToken rt = resetPasswordToken.get();
+        if (! rt.getExpiresAt().isBefore(Instant.now())) {
+            rt.setEnabled(true);
+            resetPasswordTokenRepository.save(rt);
+            return true;
+        }
+        log.warn("Token is expired.");
+        resetPasswordTokenRepository.delete(rt);
+        return false;
+    }
+
+    public String resetPassword(ResetPasswordRequest request, @NotNull String token) {
+        Optional<ResetPasswordToken> resetPasswordToken = resetPasswordTokenRepository.findByToken(token);
+        if (resetPasswordToken.isPresent()) {
+            ResetPasswordToken rt = resetPasswordToken.get();
+            if (rt.isEnabled()) {
+                Users user = userService.getUserById(rt.getUserId());
+                log.info("User email: {}", user.getEmail());
+                String password = request.getPassword();
+                String confirmPassword = request.getConfirmPassword();
+                log.info("password: {}", password);
+                log.info("confirmPassword {}", confirmPassword);
+                if (password.equals(confirmPassword)) {
+                    user.setPassword(passwordEncoder.encode(password));
+                    userRepository.save(user);
+                    resetPasswordTokenRepository.delete(rt);        // the token should now be invalid
+                    return "Successful";
+                }
+                return "Password Mismatch.";
+            }
+        }
+        return "Invalid Token";
     }
 
 

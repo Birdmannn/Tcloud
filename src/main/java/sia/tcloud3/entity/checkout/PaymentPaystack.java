@@ -30,7 +30,8 @@ public class PaymentPaystack {
     String createdAt;
     String currency;
     String ipAddress;
-//    PricingPlanType planType = PricingPlanType.BASIC;
+
+    Long orderId;
 
     @CreationTimestamp
     @Temporal(TemporalType.TIMESTAMP)

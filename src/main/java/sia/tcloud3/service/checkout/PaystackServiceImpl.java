@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import sia.tcloud3.dtos.requests.checkout.CreatePlanRequest;
@@ -62,35 +63,21 @@ public class PaystackServiceImpl implements PaystackService {
     @Override
     public InitializePaymentResponse initializePayment(@NotNull Long orderId) {
         ResponseEntity<InitializePaymentResponse> response = null;
-        String message = "?";
-        boolean proceed = true;
-        Map<String, String> request = new HashMap<>();
-        Optional<TacoOrder> orderOpt = orderRepository.findById(orderId);
 
-        if (! orderOpt.isPresent()) {
-            message = "No order found with order id: " + orderId;
-            proceed = false;
-        }
-
-        TacoOrder order = orderOpt.get();
-        if (order.getStatus().equals("purchased")) {
-            message = "This order has already been purchased by you";
-            proceed = false;
-        }
-        // Resolve the owner of the order
         Users user =  userService.retrieveCurrentUser();
         Long userId = user.getId();
-        if (!Objects.equals(order.getUserId(), userId)) {
-            message = "Order user and current user don't match.";
-            proceed = false;
-        }
+        Object[] values = resolveOrder(orderId, userId);
+        boolean proceed = (boolean) values[0];
+        String message = (String) values[1];
 
         if (proceed) {
             try {
+                TacoOrder order = (TacoOrder) values[2];
                 HttpHeaders headers = new HttpHeaders();
                 headers.setBearerAuth(paystackSecretKey);
                 headers.setContentType(MediaType.APPLICATION_JSON);
 
+                Map<String, String> request = new HashMap<>();
                 BigDecimal amountToBePaid = order.getCost().multiply(new BigDecimal(100));
                 request.put("email", user.getEmail());
                 request.put("amount", String.valueOf(amountToBePaid));
@@ -110,32 +97,86 @@ public class PaystackServiceImpl implements PaystackService {
 
     @Override
     @Transactional
-    public PaymentVerificationResponse verifyPayment(String reference) {
+    public PaymentVerificationResponse verifyPayment(@NotNull Long orderId, @NotNull String reference) {
         ResponseEntity<PaymentVerificationResponse> response = null;
         String url = PAYSTACK_VERIFY + reference;
+        Users user = userService.retrieveCurrentUser();
+        Long userId = user.getId();
+        Object[] values = resolveOrder(orderId, userId);
 
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("Authorization", "Bearer " + paystackSecretKey);
-            HttpEntity request = new HttpEntity(headers);
-            response = restTemplate.exchange(url, HttpMethod.GET, request, PaymentVerificationResponse.class);
+        boolean proceed = (boolean) values[0];
+        String message = (String) values[1];
 
-            if (response.getBody() == null || response.getBody().getStatus().equals(false))
-                throw new PaymentException("An error occurred in verifying payment.");
-            else if (response.getBody().getData().getStatus().equalsIgnoreCase("success")) {
-                Users user = userService.retrieveCurrentUser();
-                PaymentPaystack paymentPaystack = new PaymentPaystack();
-                paymentMapper.saveVerifiedPayment(paymentPaystack, response.getBody().getData());
-                paymentPaystack.setUser(user);
-                paymentRepo.save(paymentPaystack);
+        if (proceed) {
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.setBearerAuth(paystackSecretKey);
+                HttpEntity request = new HttpEntity(headers);
+                response = restTemplate.exchange(url, HttpMethod.GET, request, PaymentVerificationResponse.class);
+
+                if (response.getBody() == null || response.getBody().getStatus().equals(false))
+                    throw new PaymentException("An error occurred in verifying payment.");
+                else if (response.getBody().getData().getStatus().equalsIgnoreCase("success")) {
+                    PaymentPaystack paymentPaystack = new PaymentPaystack();
+                    paymentMapper.saveVerifiedPayment(paymentPaystack, response.getBody().getData());
+                    paymentPaystack.setUser(user);
+                    paymentPaystack.setOrderId(orderId);
+                    TacoOrder order = (TacoOrder) values[2];
+                    order.setStatus("purchased");
+                    orderRepository.save(order);
+                    paymentRepo.save(paymentPaystack);
+                }
+            } catch (Exception e) {
+                e.printStackTrace(new PrintStream(System.out));
+                message = "Something went wrong with the Payment Verification Response.";
             }
-        } catch (Exception e) {
-            e.printStackTrace(new PrintStream(System.out));
         }
-        // TODO: Check the status of your payment dtos. Change from String to Boolean, or otherwise.
+
         return response != null ? response.getBody() : PaymentVerificationResponse.builder().status(false)
-                .message("Something went wrong with the Payment Verification Response.").build();
+                .message(message).build();
     }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public Iterable<PaymentPaystack> getPayments() {
+        // TODO: Add the Pageable in the future
+        return paystackPaymentRepository.findAll();
+    }
+
+    // ----------------------------------------------------------------------------------------------------------------------
+    private Object[] resolveOrder(Long  orderId, Long userId) {
+        Object[] returnValues = new Object[3];
+        boolean proceed = true;
+        String message = "?";
+        Optional<TacoOrder> orderOpt = orderRepository.findById(orderId);
+
+        if (! orderOpt.isPresent()) {
+            message = "No order found with order id: " + orderId;
+            proceed = false;
+        }
+
+        if (proceed) {
+            TacoOrder order = orderOpt.get();
+            if (order.getStatus().equals("purchased")) {
+                message = "This order has already been purchased by you.";
+                proceed = false;
+            }
+
+            if (! Objects.equals(order.getUserId(), userId)) {
+                message = "Order user and current user don't match.";
+                proceed = false;
+            }
+        }
+
+        returnValues[0] = proceed;
+        returnValues[1] = message;
+        returnValues[2] = orderOpt.get();
+
+        return returnValues;
+    }
+
+
+    // ----------------------------------------------------------------------------------------------------------------------
 
     public static class PaymentException extends Exception {
         PaymentException(String message) {

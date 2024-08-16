@@ -1,11 +1,13 @@
 package sia.tcloud3.controllers;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import sia.tcloud3.dtos.requests.RefreshTokenRequest;
+import sia.tcloud3.dtos.requests.ResetPasswordRequest;
 import sia.tcloud3.dtos.response.LoginResponse;
 import sia.tcloud3.dtos.requests.LoginRequest;
 import sia.tcloud3.dtos.requests.SignUpRequest;
@@ -53,5 +55,25 @@ public class AuthenticationController {
     @GetMapping("/signup/confirm")
     public String confirm(@RequestParam("token") String token) {
         return authenticationService.confirmToken(token);
+    }
+
+    @PostMapping("forgotPassword")
+    public ResponseEntity<String> forgotPassword(@RequestParam("email") String email) {
+        String response = authenticationService.forgotPassword(email);
+        return response == null ? ResponseEntity.badRequest().body("Invalid request. Check your email address and try again.")
+                : ResponseEntity.ok(response);
+    }
+
+    @GetMapping("resetPassword")
+    public String resetPassword(@RequestParam("token") String token) {
+        boolean value = authenticationService.resetPassword(token);
+        return value ? "Confirmed" : "Invalid Token";
+    }
+
+    @PostMapping("resetPassword") // From the client, prototype. Check and confirm, and remove this statement if true
+    public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request,
+                                                @RequestParam("token") String token) {
+        String response = authenticationService.resetPassword(request, token);
+        return ResponseEntity.ok(response);
     }
 }

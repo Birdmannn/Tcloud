@@ -25,7 +25,8 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final CleanUpService cleanUpService;
 
-    public UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder, CleanUpService cleanUpService) {
+    public UserService(UserRepository userRepository, UserMapper userMapper, PasswordEncoder passwordEncoder,
+                       CleanUpService cleanUpService) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
@@ -69,7 +70,8 @@ public class UserService {
     public GetUserResponse updateUser(UserUpdateRequest request) {
         Users user = retrieveCurrentUser();
         userMapper.updateUser(user, request);
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        if (request.getPassword() != null)
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
         return userMapper.toGetUserResponse(userRepository.save(user));
     }
 

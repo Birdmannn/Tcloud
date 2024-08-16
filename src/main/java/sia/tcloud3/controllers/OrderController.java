@@ -77,6 +77,13 @@ public class OrderController {
         return ResponseEntity.ok(userOrders);
     }
 
+    @GetMapping("search")
+    @ResponseStatus(HttpStatus.OK)
+    public List<TacoOrder> searchOrders(@RequestParam("t") String t) {
+        return orderService.findBySearchText(t);
+    }
+
+
     // In the future, you may add multiple deletion by putting all the ids in a list in a request.
 
     // ------------------------------------------- Private methods --------------------------------------------------------

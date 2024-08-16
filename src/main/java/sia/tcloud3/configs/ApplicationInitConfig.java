@@ -24,7 +24,7 @@ public class ApplicationInitConfig {
     PasswordEncoder passwordEncoder;
 
     @NonFinal
-    static final String ADMIN_EMAIL = "admin@gmail.com";
+    static final String ADMIN_EMAIL = "admin3@gmail.com";
 
     @NonFinal
     static final String ADMIN_PASSWORD = "admin";
@@ -38,7 +38,7 @@ public class ApplicationInitConfig {
                 Users user = Users.builder()
                         .firstName("Admin")
                         .lastName("Admin")
-                        .email("admin3@gmail.com")
+                        .email(ADMIN_EMAIL)
                         .password(passwordEncoder.encode(ADMIN_PASSWORD))
                         .enabled(true)
                         .locked(false)

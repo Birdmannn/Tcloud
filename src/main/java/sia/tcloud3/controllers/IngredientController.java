@@ -47,5 +47,5 @@ public class IngredientController {
         repo.deleteById(ingredientId);
     }
 
-    // TODO: Delete by id here
+    // TODO: Edit ingredient here.
 }

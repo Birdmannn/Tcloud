@@ -5,7 +5,7 @@ import sia.tcloud3.dtos.response.GetUserResponse;
 import sia.tcloud3.entity.Users;
 import sia.tcloud3.dtos.requests.UserUpdateRequest;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface UserMapper {
     GetUserResponse toGetUserResponse(Users user);
 

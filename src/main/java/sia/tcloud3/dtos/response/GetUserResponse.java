@@ -10,9 +10,14 @@ import sia.tcloud3.entity.Users.Role;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Builder
 public class GetUserResponse {
-    Long id;
     String email;
     String firstName;
     String lastName;
     Role role;
+    String username;
+    String street;
+    String city;
+    String state;
+    String zip;
+    String phoneNumber;
 }
