@@ -16,8 +16,8 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.servlet.HandlerExceptionResolver;
-import sia.tcloud3.service.InMemoryTokenBlacklistService;
-import sia.tcloud3.service.JwtService;
+import sia.tcloud3.service.auth.InMemoryTokenBlacklistService;
+import sia.tcloud3.service.auth.JwtService;
 
 import java.io.IOException;
 
@@ -61,15 +61,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             final String userEmail = jwtService.extractUsername(jwt);
 
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            log.info("Security Context Holder check...");
-
             if (userEmail != null && authentication == null) {
                 log.info("Equals null -- ok.");
                 UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
 
                 if (jwtService.isTokenValid(jwt, userDetails)) {
-
-                    log.debug("Token is valid with jwt and userdetails.");
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails,

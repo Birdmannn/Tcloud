@@ -1,7 +1,8 @@
 package sia.tcloud3.controllers;
 
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import lombok.Value;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,9 @@ import sia.tcloud3.dtos.response.LoginResponse;
 import sia.tcloud3.dtos.requests.LoginRequest;
 import sia.tcloud3.dtos.requests.SignUpRequest;
 import sia.tcloud3.entity.Users;
-import sia.tcloud3.service.AuthenticationService;
+import sia.tcloud3.service.auth.AuthenticationService;
+
+import java.io.IOException;
 //import sia.tcloud3.service.UserServiceImpl;
 
 @Slf4j
@@ -36,7 +39,7 @@ public class AuthenticationController {
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> authenticate(@RequestBody LoginRequest loginRequest) {
-        LoginResponse loginResponse = authenticationService.login(loginRequest);
+        LoginResponse loginResponse = authenticationService.login(loginRequest, false);
         return ResponseEntity.ok(loginResponse);
     }
 
@@ -70,10 +73,17 @@ public class AuthenticationController {
         return value ? "Confirmed" : "Invalid Token";
     }
 
-    @PostMapping("resetPassword") // From the client, prototype. Check and confirm, and remove this statement if true
+    @PostMapping("resetPassword")
     public ResponseEntity<String> resetPassword(@RequestBody ResetPasswordRequest request,
                                                 @RequestParam("token") String token) {
         String response = authenticationService.resetPassword(request, token);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/outbound/authenticate")   // Or any response object, let's see
+    public ResponseEntity<LoginResponse> grantCode(@RequestParam("code") String code, @RequestParam("scope") String scope,
+                          HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        LoginResponse loginResponse = authenticationService.processCode(code, scope, request, response);
+        return ResponseEntity.ok(loginResponse);
     }
 }

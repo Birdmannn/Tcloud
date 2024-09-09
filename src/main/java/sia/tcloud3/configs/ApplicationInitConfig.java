@@ -12,9 +12,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import sia.tcloud3.repositories.UserRepository;
 import sia.tcloud3.entity.Users;
 
-import java.util.List;
-import java.util.Optional;
-
 @Configuration
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)

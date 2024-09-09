@@ -3,9 +3,7 @@ package sia.tcloud3.service;
 import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import sia.tcloud3.dtos.requests.OrderRequest;
@@ -15,7 +13,7 @@ import sia.tcloud3.entity.TacoOrder;
 import sia.tcloud3.mapper.OrderMapper;
 import sia.tcloud3.repositories.OrderRepository;
 import sia.tcloud3.repositories.TacoRepository;
-import sia.tcloud3.service.params.ParamsOrganizer;
+import sia.tcloud3.service.utils.ParamsOrganizer;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,7 +31,7 @@ public class OrderService {
     // TODO: To post a new Order, prepopulate
     //  check if the user has placed an order before, then prepopulate and return as Json, no?
     //  or it's just from the client, local storage? or can be saved to this database which I don't
-    //  wish to. Perhaps the user has changed his/her location, yo.
+    //  wish to. Perhaps the user has changed his/her location.
 
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
@@ -54,7 +52,7 @@ public class OrderService {
         List<TacoOrder> tacoOrders = tacoOrdersPage.getContent();
         List<TacoOrder> userOrders = new ArrayList<>();
 
-        // TODO: Put this admin issh into the Pageable method
+        // TODO: Put this admin boolean into the Pageable method
         //   so it can page the user's orders if it surpasses a page, or not
         if (! admin) {
             Long userId = userService.retrieveCurrentUser().getId();
@@ -69,7 +67,7 @@ public class OrderService {
     //This method should throw an error if the order could not be created.
     public OrderResponse createOrder(OrderRequest orderRequest) {
         TacoOrder order = orderMapper.toTacoOrder(orderRequest);
-        int testAddition = 5000;
+        int testAddition = 5000; // to test.
         BigDecimal orderCost = new BigDecimal(testAddition);
 
         List<Long> tacoIds = order.getTacoIds();
