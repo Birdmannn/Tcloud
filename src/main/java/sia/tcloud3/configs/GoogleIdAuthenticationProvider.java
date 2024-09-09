@@ -100,7 +100,6 @@ public class GoogleIdAuthenticationProvider implements AuthenticationProvider {
                         .enabled(true)
                         .locked(false).build();
                 userRepository.save(user);
-                log.info("User with email :{} is a new user. User has been saved.", email);
             }
         }
 

@@ -112,15 +112,6 @@ public class OutboundAuthService {
                 .expiresIn(expiry)
                 .refreshToken(refreshToken)
                 .build();
-
-//        resolveId(idToken, request, response);
-    }
-
-    // TODO: Do something with the json object in the future
-    private void resolveId(String idToken, HttpServletRequest request, HttpServletResponse response)
-            throws ServletException, IOException {
-        RequestDispatcher dispatcher = request.getRequestDispatcher("/auth/outbound/resolveId?googleIdToken=" + idToken);
-        dispatcher.forward(request, response);
     }
 
     private void accessScopes(String accessToken) {
