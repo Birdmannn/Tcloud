@@ -1,57 +1,61 @@
 package sia.tcloud3.configs;
 
-import jakarta.mail.internet.MimeMessage;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.mail.MailException;
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
+
+import org.springframework.security.authentication.AuthenticationDetailsSource;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.authentication.WebAuthenticationDetails;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.client.RestTemplate;
 import sia.tcloud3.repositories.UserRepository;
 
-import java.io.InputStream;
-//import sia.tcloud3.service.UserServiceImpl;
-
 @Configuration
+@Slf4j
+@RequiredArgsConstructor
 public class ApplicationConfiguration {
 
-    private final UserRepository userRepository;
+    // ------------------------------------- Injected Beans ----------------------------------------------------------
 
-    public ApplicationConfiguration(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
+    private final GoogleIdAuthenticationProvider googleIdAuthenticationProvider;
 
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return  username -> userRepository.findByEmail(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found."));
-    }
-
+    // ---------------------------------------------------------------------------------------------------------------
     @Bean
     BCryptPasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    AuthenticationManager authenticationManager(HttpSecurity httpSecurity,
-                                                BCryptPasswordEncoder passwordEncoder, UserDetailsService userDetailsService) throws Exception{
+    RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+
+    @Bean
+    public UserDetailsService userDetailsService(UserRepository userRepository) {
+        return  username -> userRepository.findByEmail(username)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found."));
+    }
+
+    @Bean
+    AuthenticationManager authenticationManager(HttpSecurity httpSecurity, UserDetailsService userDetailsService) throws Exception{
         AuthenticationManagerBuilder authenticationManagerBuilder =
                 httpSecurity.getSharedObject(AuthenticationManagerBuilder.class);
-        authenticationManagerBuilder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
+        authenticationManagerBuilder.authenticationProvider(googleIdAuthenticationProvider)
+                .userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
 
         return authenticationManagerBuilder.build();
     }
 
     @Bean
-    RestTemplate restTemplate() {
-        return new RestTemplate();
+    public AuthenticationDetailsSource<HttpServletRequest, WebAuthenticationDetails> authenticationDetailsSource() {
+        return new WebAuthenticationDetailsSource();
     }
 }
