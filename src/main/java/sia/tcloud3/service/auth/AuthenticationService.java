@@ -1,6 +1,8 @@
-package sia.tcloud3.service;
+package sia.tcloud3.service.auth;
 
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import lombok.extern.slf4j.Slf4j;
@@ -14,17 +16,21 @@ import org.springframework.util.StringUtils;
 import sia.tcloud3.dtos.requests.ResetPasswordRequest;
 import sia.tcloud3.entity.ConfirmationToken;
 import sia.tcloud3.entity.ResetPasswordToken;
-import sia.tcloud3.repositories.ResetPasswordTokenRepository;
+import sia.tcloud3.repositories.auth.ResetPasswordTokenRepository;
 import sia.tcloud3.repositories.UserRepository;
 import sia.tcloud3.dtos.requests.LoginRequest;
 import sia.tcloud3.dtos.requests.SignUpRequest;
 import sia.tcloud3.dtos.response.LoginResponse;
 import sia.tcloud3.entity.RefreshToken;
 import sia.tcloud3.entity.Users;
+import sia.tcloud3.service.UserService;
 import sia.tcloud3.service.email.EmailService;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDateTime;
+
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -44,6 +50,7 @@ public class AuthenticationService {
     private final ConfirmationTokenService confirmationTokenService;
     private final EmailService emailService;
     private final ResetPasswordTokenRepository resetPasswordTokenRepository;
+    private final OutboundAuthService outboundAuthService;
 
     private List<String> refreshTokenList;
     private static final long EXPIRE_TOKEN = 15;
@@ -53,7 +60,8 @@ public class AuthenticationService {
                                  AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService,
                                  JwtService jwtService, InMemoryTokenBlacklistService inMemoryTokenBlacklistService,
                                  UserService userService, ConfirmationTokenService confirmationTokenService,
-                                 EmailService emailService, ResetPasswordTokenRepository resetPasswordTokenRepository) {
+                                 EmailService emailService, ResetPasswordTokenRepository resetPasswordTokenRepository,
+                                 OutboundAuthService outboundAuthService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -62,6 +70,7 @@ public class AuthenticationService {
         this.inMemoryTokenBlacklistService = inMemoryTokenBlacklistService;
         this.userService = userService;
         this.resetPasswordTokenRepository = resetPasswordTokenRepository;
+        this.outboundAuthService = outboundAuthService;
         refreshTokenList = new ArrayList<>();
         this.confirmationTokenService = confirmationTokenService;
         this.emailService = emailService;
@@ -72,14 +81,11 @@ public class AuthenticationService {
                 input.getFirstName(), input.getLastName(), Users.Role.USER);
         newUser.setLocked(false);
         newUser.setEnabled(false);
-        log.info("User {} enabled? {}", newUser.getEmail(), newUser.isEnabled());
         Optional<Users> optUser = userRepository.findByEmail(newUser.getEmail());
-        log.info("user here");
         if (optUser.isPresent()) {
             Users user = optUser.get();
             if (user.isEnabled())
                return null;
-            log.info("Reached here, user is not enabled");
         }
         else {
             userRepository.save(newUser);
@@ -92,11 +98,9 @@ public class AuthenticationService {
         // Here is for the email confirmation
         // Since we are running the spring boot app in localhost, we are hardcoding the url of the server
         // We are creating a POST request with token param
-        log.info("sending link and token {}", token);
         String link = "http://localhost:8082/auth/signup/confirm?token=" + token;
 //        emailService.sendEmail(user.getEmail(), EmailBuilder.buildEmail(user.getFirstName(), link));
-        log.info("email sent. reached here.");
-        log.info("link {}", link);
+        log.info("link {}", link); // for testing purposes
         return user;
     }
 
@@ -125,13 +129,11 @@ public class AuthenticationService {
                             .token(accessToken)
                             .refreshToken(refreshTokenService.createRefreshToken(user))
                             .build();
-                }).orElseThrow(() -> new RuntimeException("Refresh Token is not in DB!"));
+                }).orElseThrow(() -> new RuntimeException("Invalid token. Please make a new login."));
     }
 
-    public LoginResponse login(LoginRequest loginRequest) {
+    public LoginResponse login(LoginRequest loginRequest, boolean oauth2) {
         Users authenticatedUser = authenticate(loginRequest);
-
-        log.info("at /login: username: {}", authenticatedUser.getEmail()); // exists
         String jwtToken = jwtService.generateToken(authenticatedUser);
         String refreshToken = refreshTokenService.createRefreshToken(authenticatedUser);
 
@@ -147,7 +149,7 @@ public class AuthenticationService {
         if (token  == null)
             return "No token detected. User is still logged in.";
         inMemoryTokenBlacklistService.addToBlacklist(token);
-//        refreshTokenService.delete(userService.retrieveCurrentUser());
+        refreshTokenService.delete(userService.retrieveCurrentUser());
 
         // TODO: clear any session-related repositories if necessary
         return "Logged out Successfully";
@@ -166,7 +168,7 @@ public class AuthenticationService {
         ResetPasswordToken resetPasswordToken = ResetPasswordToken.builder()
                 .token(token)
                 .userId(user.getId())
-                .expiresAt(Instant.now().plusSeconds(EXPIRE_TOKEN * 60)).build(); // 15 minutes
+                .expiresAt(Instant.now().plus(EXPIRE_TOKEN, ChronoUnit.MINUTES)).build(); // 15 minutes
         resetPasswordTokenRepository.save(resetPasswordToken);
         String url = "http://localhost:8082/auth/resetPassword?token=" + token;
         String tempMessage = "Your Reset Password link: " + url + ". If you didn't request for this, please ignore this message.";
@@ -189,6 +191,7 @@ public class AuthenticationService {
             resetPasswordTokenRepository.save(rt);
             return true;
         }
+        
         log.warn("Token is expired.");
         resetPasswordTokenRepository.delete(rt);
         return false;
@@ -240,6 +243,14 @@ public class AuthenticationService {
         return "Your email is confirmed. Thank you for using our service!";
     }
 
+    // -------------------------------------------- Oauth2 ----------------------------------------------------------------
+
+    public LoginResponse processCode(String code, String scope, HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        log.info("Google auth code? {}", code);
+        return outboundAuthService.resolveUser(code, scope, request, response);
+    }
+
 
     // ----------------------------------------- Private methods ----------------------------------------------------------
 
@@ -253,7 +264,7 @@ public class AuthenticationService {
     private void saveConfirmationToken(Users user, String token) {
         ConfirmationToken confirmationToken = ConfirmationToken.builder().token(token)
                 .createdAt(LocalDateTime.now())
-                .expiresAt(LocalDateTime.now().plusMinutes(15))
+                .expiresAt(LocalDateTime.now().plusMinutes(EXPIRE_TOKEN))
                 .user(user).build();
         confirmationTokenService.saveConfirmationToken(confirmationToken);
     }

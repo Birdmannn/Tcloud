@@ -1,4 +1,4 @@
-package sia.tcloud3.service;
+package sia.tcloud3.service.auth;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -17,7 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-import sia.tcloud3.entity.Users;
 
 @Data
 @Slf4j
@@ -29,10 +28,15 @@ public class JwtService {
 
     @Value("${security.jwt.expiration-time}")
     private long jwtExpiration;
+    private static final String ISSUER = "tCloudSSecurityApi";
 
     public String extractUsername(String token) {
         log.info("Extracting Username...");
         return extractClaim(token, Claims::getSubject);
+    }
+
+    public boolean isIssuerValid(String token) {
+        return extractClaim(token, Claims::getIssuer).equals(ISSUER);
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -50,11 +54,10 @@ public class JwtService {
     }
 
     private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long expiration) {
-        log.info("When building token.\n\n Username from userdetails = " + userDetails.getUsername());
-
         return Jwts.builder()
                 .setClaims(extraClaims)
                 .setSubject(userDetails.getUsername())
+                .setIssuer(ISSUER)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(getSignInKey(), SignatureAlgorithm.HS256)
@@ -63,7 +66,7 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token) && isIssuerValid(token);
     }
 
     private boolean isTokenExpired(String token) {

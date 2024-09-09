@@ -1,4 +1,4 @@
-package sia.tcloud3.repositories;
+package sia.tcloud3.repositories.auth;
 
 import jakarta.transaction.Transactional;
 import org.springframework.data.jpa.repository.JpaRepository;

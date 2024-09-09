@@ -1,8 +1,8 @@
-package sia.tcloud3.service;
+package sia.tcloud3.service.auth;
 
 import org.springframework.stereotype.Service;
 import sia.tcloud3.entity.ConfirmationToken;
-import sia.tcloud3.repositories.ConfirmationTokenRepository;
+import sia.tcloud3.repositories.auth.ConfirmationTokenRepository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;

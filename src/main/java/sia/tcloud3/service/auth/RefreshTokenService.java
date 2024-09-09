@@ -1,9 +1,9 @@
-package sia.tcloud3.service;
+package sia.tcloud3.service.auth;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import sia.tcloud3.repositories.RefreshTokenRepository;
+import sia.tcloud3.repositories.auth.RefreshTokenRepository;
 import sia.tcloud3.repositories.UserRepository;
 import sia.tcloud3.entity.RefreshToken;
 import sia.tcloud3.entity.Users;
@@ -21,22 +21,10 @@ public class RefreshTokenService {
     private int refreshTokenExpiration;
 
     private final RefreshTokenRepository refreshTokenRepository;
-    private final UserRepository userRepository;
 
-    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository, UserRepository userRepository) {
+    public RefreshTokenService(RefreshTokenRepository refreshTokenRepository) {
         this.refreshTokenRepository = refreshTokenRepository;
-        this.userRepository = userRepository;
     }
-
-//    public RefreshToken createRefreshToken(String email) {
-//        RefreshToken refreshToken = RefreshToken.builder()
-//                .userInfo(userRepository.findByEmail(email).get())
-//                .token(UUID.randomUUID().toString())
-//                .expiryDate(Instant.now().plusMillis(refreshTokenExpiration))
-//                .build();
-//
-//        return refreshTokenRepository.save(refreshToken);
-//    }
 
     public String createRefreshToken(Users user) {
         RefreshToken refreshToken = RefreshToken.builder()
@@ -63,10 +51,10 @@ public class RefreshTokenService {
     }
 
     public void delete(Users user) {
-        boolean deleted = refreshTokenRepository.deleteRefreshTokenByUserId(user.getId());
-        if (deleted)
-            log.info("Existing refresh token deleted");
-        else
-            log.info("Could not delete");
+        Optional<Iterable<RefreshToken>> refreshTokens = refreshTokenRepository.findAllByUserId(user.getId());
+        if (! refreshTokens.isPresent())
+            return;
+        refreshTokenRepository.deleteAll(refreshTokens.get());
+        log.info("Delete method EOL");
     }
 }

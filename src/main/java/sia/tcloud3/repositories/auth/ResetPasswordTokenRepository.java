@@ -1,4 +1,4 @@
-package sia.tcloud3.repositories;
+package sia.tcloud3.repositories.auth;
 
 import org.springframework.data.repository.CrudRepository;
 import sia.tcloud3.entity.ResetPasswordToken;

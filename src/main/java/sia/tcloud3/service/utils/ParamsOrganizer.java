@@ -1,4 +1,4 @@
-package sia.tcloud3.service.params;
+package sia.tcloud3.service.utils;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
